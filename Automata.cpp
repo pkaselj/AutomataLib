@@ -1,6 +1,7 @@
 #include"Automata.hpp"
 
 #include"/home/pi/Shared/KernelLib/0.0.0/Kernel.hpp"
+#include"/home/pi/Shared/LoggerLib/0.0.0/NulLogger.hpp"
 
 #include<stdexcept>
 
@@ -143,6 +144,7 @@ Table& operator<<(Table& table, Transition* p_transition)
                                     p_transition->getNextState()
                                   });
 
+    // Write a destructor for Transition
     delete p_transition->getStateEventPair(); // Dynamically allocated when using operator+ on State and Event
     delete p_transition; // Dynamically allocated when using operator> on State_Event_Pair
 
@@ -156,6 +158,31 @@ Automata::Automata(const State& _p_current_state,
                    const State& _p_exit_state,
                    const Table& _p_transition_table,
                    void* _data)
+{
+    LoadTable(_p_current_state, _p_starting_state, _p_exit_state, _p_transition_table, _data);
+}
+
+Automata::Automata(const State& _p_current_state,
+                   const State& _p_starting_state,
+                   const State& _p_exit_state,
+                   const Table& _p_transition_table)
+{
+    LoadTable(_p_current_state, _p_starting_state, _p_exit_state, _p_transition_table);
+}
+
+void Automata::SetData(void* _data)
+{
+    data = _data;
+    if(data == nullptr)
+    {
+        Kernel::Warning("Automaton not working on any data");
+    }
+}
+
+void Automata::LoadTable(const State& _p_current_state,
+                         const State& _p_starting_state,
+                         const State& _p_exit_state,
+                         const Table& _p_transition_table)
 {
     p_current_state = &_p_current_state;
     if(p_current_state == nullptr)
@@ -180,12 +207,23 @@ Automata::Automata(const State& _p_current_state,
     {
         Kernel::Fatal_Error("Automaton transition table cannot be null");
     }
+}
 
-    data = _data;
-    if(data == nullptr)
-    {
-        Kernel::Warning("Automaton not working on any data");
-    }
+void Automata::setLogger(ILogger* _p_logger)
+{
+    p_logger = _p_logger;
+    if(p_logger == nullptr)
+        p_logger = NulLogger::getInstance();
+}
+
+void Automata::LoadTable(const State& _p_current_state,
+                         const State& _p_starting_state,
+                         const State& _p_exit_state,
+                         const Table& _p_transition_table,
+                         void* _data)
+{
+    LoadTable(_p_current_state, _p_starting_state, _p_exit_state, _p_transition_table);
+    SetData(_data);
 }
 
 void Automata::Reset()
@@ -195,7 +233,11 @@ void Automata::Reset()
 
 void Automata::Advance(Event& event, void* arguments)
 {
+    const State* p_previous_state = p_current_state;
+
     p_current_state = p_transition_table->next_state(p_current_state, &event);
+
+    *p_logger << p_previous_state->getName() + " + " + p_current_state->getName() + " -> " + event.getName();
     // check if staying in the same state TODO
     p_current_state->execute(data, arguments);
 }

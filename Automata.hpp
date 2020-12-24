@@ -1,6 +1,8 @@
 #ifndef AUTOMATA_HPP
 #define AUTOMATA_HPP
 
+#include"/home/pi/Shared/LoggerLib/0.0.0/ILogger.hpp"
+
 #include<string>
 #include<unordered_map>
 
@@ -33,6 +35,13 @@ class Event
     std::string getName() const;
 };
 
+/// Event used by unstable states to advance automaton
+EVENT(NEXT_STATE_EVENT)
+/// Null event
+EVENT(NULL_EVENT)
+/// Default error event
+EVENT(ERROR_EVENT)
+
 typedef bool (*state_action) (void* data, void* arguments);
 
 class State
@@ -51,6 +60,9 @@ class State
     std::string getName() const;
     void execute(void* data, void* arguments) const;
 };
+
+/// Null (default starting) state
+STATE(NULL_STATE)
 
 class State_Event_Pair
 {
@@ -118,6 +130,8 @@ class Automata
 
     const Table* p_transition_table = nullptr;
 
+    ILogger* p_logger = nullptr;
+
     void* data = nullptr;
 
     public:
@@ -125,11 +139,33 @@ class Automata
              const State& _p_starting_state,
              const State& _p_exit_state,
              const Table& _p_transition_table,
-             void* _data = nullptr);
+             void* _data);
+
+    Automata(const State& _p_current_state,
+             const State& _p_starting_state,
+             const State& _p_exit_state,
+             const Table& _p_transition_table);
+
+    Automata() = default;
     ~Automata() = default;
     Automata(Automata&) = default;
     Automata(Automata&&) = default;
 
+    // Temporary TODO fix
+    void setLogger(ILogger* _p_logger);
+
+    void LoadTable(const State& _p_current_state,
+                   const State& _p_starting_state,
+                   const State& _p_exit_state,
+                   const Table& _p_transition_table,
+                   void* _data);
+    
+    void LoadTable(const State& _p_current_state,
+                   const State& _p_starting_state,
+                   const State& _p_exit_state,
+                   const Table& _p_transition_table);
+
+    void SetData(void* _data);
     void Reset();
     void Advance(Event& event, void* arguments = nullptr);
 };
