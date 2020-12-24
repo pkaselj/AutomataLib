@@ -1,5 +1,7 @@
 #include"Automata.hpp"
 
+#include"/home/pi/Shared/KernelLib/0.0.0/Kernel.hpp"
+
 #include<stdexcept>
 
 //================================EVENT
@@ -8,7 +10,7 @@ Event::Event(const std::string& event_name)
 {
     if(event_name == "")
     {
-        exit(-1);
+        Kernel::Fatal_Error("Event name cannot be empty");
     }
 
     name = event_name;
@@ -28,6 +30,7 @@ State::State(const std::string& state_name, state_action _action)
 
     if(state_name == "")
     {
+        Kernel::Fatal_Error("State name cannot be empty");
         exit(-1);
     }
 
@@ -55,12 +58,12 @@ State_Event_Pair::State_Event_Pair(const State* _state, const Event* _event)
 
     if(state == nullptr)
     {
-        exit(-1);
+        Kernel::Fatal_Error("State_Event_Pair - state error! nullptr!");
     }
 
     if(event == nullptr)
     {
-        exit(-1);
+        Kernel::Fatal_Error("State_Event_Pair - event error! nullptr!");
     }
 }
 
@@ -83,14 +86,14 @@ Transition::Transition(State_Event_Pair* _p_state_event_pair, State* _p_next_sta
 
     if(p_next_state == nullptr)
     {
-        exit(-1);
+        Kernel::Fatal_Error("Transition - next state error! nullptr!");
     }
 
     p_state_event_pair = _p_state_event_pair;
 
     if(p_state_event_pair == nullptr)
     {
-        exit(-1);
+        Kernel::Fatal_Error("Transition - State_Event_Pair error! nullptr!");
     }
 }
 
@@ -125,6 +128,7 @@ const State* Table::next_state(const State* current_state, const Event* event) c
         // Error
         // Undefined state event transition
         next_state_pointer = current_state;
+        Kernel::Warning("No known transition in the transition table for: " + current_state->getName() + " and " + event->getName());
     }
 
     return next_state_pointer;
@@ -156,28 +160,32 @@ Automata::Automata(const State& _p_current_state,
     p_current_state = &_p_current_state;
     if(p_current_state == nullptr)
     {
-        exit(-1);
+        Kernel::Fatal_Error("Automaton current state cannot be null");
     }
 
     p_starting_state = &_p_starting_state;
     if(p_starting_state == nullptr)
     {
-        exit(-1);
+        Kernel::Fatal_Error("Automaton starting state cannot be null");
     }
 
     p_exit_state = &_p_exit_state;
     if(p_exit_state == nullptr)
     {
-        exit(-1);
+        Kernel::Fatal_Error("Automaton exit state cannot be null");
     }
 
     p_transition_table = &_p_transition_table;
     if(p_transition_table == nullptr)
     {
-        exit(-1);
+        Kernel::Fatal_Error("Automaton transition table cannot be null");
     }
 
     data = _data;
+    if(data == nullptr)
+    {
+        Kernel::Warning("Automaton not working on any data");
+    }
 }
 
 void Automata::Reset()
