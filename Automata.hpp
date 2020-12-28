@@ -32,13 +32,17 @@ class Event
     Event(Event&&) = delete;
     void operator= (Event&) = delete;
 
+    friend bool operator== (const Event& event1, const Event& event2);
+
     std::string getName() const;
 };
 
 /// Event used by unstable states to advance automaton
 static EVENT(NEXT_STATE_EVENT)
-/// Null event
-static EVENT(NULL_EVENT)
+/// Null event - operation -> stays in current state but re-does the associated state action
+static EVENT(NULL_EVENT_OP)
+/// Null veent - no-operation -> stays in current state and does not re-do the associated state action
+static EVENT(NULL_EVENT_NOP)
 /// Default error event
 static EVENT(ERROR_EVENT)
 
@@ -56,6 +60,8 @@ class State
     State(State&) = delete;
     State(State&&) = delete;
     void operator= (State&) = delete;
+
+    friend bool operator== (const State& state1, const State& state2);
 
     std::string getName() const;
     void execute(void* data, void* arguments) const;

@@ -22,6 +22,13 @@ std::string Event::getName() const
     return name;
 }
 
+bool operator== (const Event& event1, const Event& event2)
+{
+    if(event1.getName() == event2.getName())
+        return true;
+    return false;
+}
+
 //================================STATE
 
 State::State(const std::string& state_name, state_action _action)
@@ -47,6 +54,13 @@ void State::execute(void* data, void* arguments) const
         action(data, arguments);
     else
         Kernel::Warning("Trying to execute nonexistent action assigned to " + name + " state!");
+}
+
+bool operator== (const State& state1, const State& state2)
+{
+    if(state1.getName() == state2.getName())
+        return true;
+    return false;
 }
 
 //================================STATE_EVENT_PAIR
@@ -237,6 +251,7 @@ void Automata::LoadTable(const State& _p_current_state,
 void Automata::Reset()
 {
     p_current_state = p_starting_state;
+    *p_logger << "Automata reset to: " + p_current_state->getName();
 }
 
 void Automata::Advance(Event& event, void* arguments)
@@ -245,7 +260,16 @@ void Automata::Advance(Event& event, void* arguments)
 
     p_current_state = p_transition_table->next_state(p_current_state, &event);
 
-    *p_logger << p_previous_state->getName() + " + " + p_current_state->getName() + " -> " + event.getName();
-    // check if staying in the same state TODO
+    *p_logger << p_previous_state->getName() + " + " + event.getName() + " -> " + p_current_state->getName();
+    
+    if(event == NULL_EVENT_NOP)
+        return; // skip the action
+    else if(event == ERROR_EVENT)
+    {
+        *p_logger << "Warning! ERROR_EVENT has been received! Resetting the automaton";
+        Reset();
+    }
+        
+
     p_current_state->execute(data, arguments);
 }
