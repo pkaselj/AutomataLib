@@ -36,11 +36,11 @@ class Event
 };
 
 /// Event used by unstable states to advance automaton
-EVENT(NEXT_STATE_EVENT)
+static EVENT(NEXT_STATE_EVENT)
 /// Null event
-EVENT(NULL_EVENT)
+static EVENT(NULL_EVENT)
 /// Default error event
-EVENT(ERROR_EVENT)
+static EVENT(ERROR_EVENT)
 
 typedef bool (*state_action) (void* data, void* arguments);
 
@@ -61,8 +61,9 @@ class State
     void execute(void* data, void* arguments) const;
 };
 
+
 /// Null (default starting) state
-STATE(NULL_STATE)
+static STATE(NULL_STATE)
 
 class State_Event_Pair
 {
@@ -75,6 +76,7 @@ class State_Event_Pair
     State_Event_Pair() = delete;
     State_Event_Pair(State_Event_Pair&) = default;
     State_Event_Pair(State_Event_Pair&&) = default;
+    void operator= (State_Event_Pair&) = delete;
     ~State_Event_Pair() = default;
 
     std::string getUniqueIdentifier() const;
@@ -91,7 +93,7 @@ class Transition
     public:
     Transition(State_Event_Pair* _p_state_event_pair, State* _p_next_state);
     Transition() = default;
-    ~Transition() = default;
+    ~Transition();
     Transition(Transition&) = default;
     Transition(Transition&&) = default;
 

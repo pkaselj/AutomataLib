@@ -30,10 +30,7 @@ State::State(const std::string& state_name, state_action _action)
     name = "";
 
     if(state_name == "")
-    {
         Kernel::Fatal_Error("State name cannot be empty");
-        exit(-1);
-    }
 
     name = state_name;
     action = _action;
@@ -48,6 +45,8 @@ void State::execute(void* data, void* arguments) const
 {
     if(action != nullptr)
         action(data, arguments);
+    else
+        Kernel::Warning("Trying to execute nonexistent action assigned to " + name + " state!");
 }
 
 //================================STATE_EVENT_PAIR
@@ -76,6 +75,8 @@ std::string State_Event_Pair::getUniqueIdentifier() const
 State_Event_Pair* operator+ (State& _state, Event& _event)
 {
     State_Event_Pair* state_event_pair = new State_Event_Pair(&_state, &_event);
+    if(state_event_pair == nullptr)
+        Kernel::Fatal_Error("Could not create a new state event pair object for the following arguments: (" + _state.getName() + ", " + _event.getName() + ")");
     return state_event_pair;
 }
 
@@ -96,6 +97,11 @@ Transition::Transition(State_Event_Pair* _p_state_event_pair, State* _p_next_sta
     {
         Kernel::Fatal_Error("Transition - State_Event_Pair error! nullptr!");
     }
+}
+
+Transition::~Transition()
+{
+    delete p_state_event_pair;
 }
 
 State* Transition::getNextState() const
@@ -145,7 +151,7 @@ Table& operator<<(Table& table, Transition* p_transition)
                                   });
 
     // Write a destructor for Transition
-    delete p_transition->getStateEventPair(); // Dynamically allocated when using operator+ on State and Event
+    //delete p_transition->getStateEventPair(); // Dynamically allocated when using operator+ on State and Event
     delete p_transition; // Dynamically allocated when using operator> on State_Event_Pair
 
     return table;
@@ -160,6 +166,7 @@ Automata::Automata(const State& _p_current_state,
                    void* _data)
 {
     LoadTable(_p_current_state, _p_starting_state, _p_exit_state, _p_transition_table, _data);
+    setLogger(nullptr);
 }
 
 Automata::Automata(const State& _p_current_state,
@@ -168,6 +175,7 @@ Automata::Automata(const State& _p_current_state,
                    const Table& _p_transition_table)
 {
     LoadTable(_p_current_state, _p_starting_state, _p_exit_state, _p_transition_table);
+    setLogger(nullptr);
 }
 
 void Automata::SetData(void* _data)
