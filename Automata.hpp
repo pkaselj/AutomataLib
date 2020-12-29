@@ -5,6 +5,7 @@
 
 #include<string>
 #include<unordered_map>
+#include<functional>
 
 #define ARG_COUNT(_1, _2, COUNT, ...) COUNT
 #define COUNT(...) ARG_COUNT(__VA_ARGS__, 2, 1)
@@ -27,10 +28,11 @@ class Event
 
     public:
     Event(const std::string& event_name);
+    Event() = delete;
     ~Event() = default;
-    Event(Event&) = delete;
-    Event(Event&&) = delete;
-    void operator= (Event&) = delete;
+    Event(const Event&) = default;
+    Event(Event&&) = default;
+    Event& operator= (const Event&) = default;
 
     friend bool operator== (const Event& event1, const Event& event2);
 
@@ -51,20 +53,23 @@ typedef bool (*state_action) (void* data, void* arguments);
 class State
 {
     private:
+    //state_action action;
     state_action action;
     std::string name;
 
     public:
     State(const std::string& state_name, state_action _action = nullptr);
+    State() = delete;
+    //State(const std::string& state_name, std::function<bool(void*, void*)> _action = nullptr);
     ~State() = default;
-    State(State&) = delete;
-    State(State&&) = delete;
-    void operator= (State&) = delete;
+    State(const State&) = default;
+    State(State&&) = default;
+    State& operator= (const State&) = default;
 
     friend bool operator== (const State& state1, const State& state2);
 
     std::string getName() const;
-    void execute(void* data, void* arguments) const;
+    bool execute(void* data, void* arguments) const;
 };
 
 
@@ -74,11 +79,11 @@ static STATE(NULL_STATE)
 class State_Event_Pair
 {
     private:
-    const State* state = nullptr;
-    const Event* event = nullptr;
+    const State state;
+    const Event event;
 
     public:
-    State_Event_Pair(const State* _state, const Event* _event);
+    State_Event_Pair(const State _state, const Event _event);
     State_Event_Pair() = delete;
     State_Event_Pair(State_Event_Pair&) = default;
     State_Event_Pair(State_Event_Pair&&) = default;
@@ -94,16 +99,16 @@ class Transition
 {
     private:
     State_Event_Pair* p_state_event_pair = nullptr;
-    State* p_next_state = nullptr;
+    State next_state;
 
     public:
-    Transition(State_Event_Pair* _p_state_event_pair, State* _p_next_state);
+    Transition(State_Event_Pair* _p_state_event_pair, State _next_state);
     Transition() = default;
     ~Transition();
     Transition(Transition&) = default;
     Transition(Transition&&) = default;
 
-    State* getNextState() const;
+    const State& getNextState() const;
     State_Event_Pair* getStateEventPair() const;
 
     
@@ -115,7 +120,9 @@ class Table
 {
     private:
 
-    std::unordered_map<std::string, State*> transition_table;
+    std::unordered_map<std::string, State> transition_table;
+
+
 
     public:
     Table() = default;
@@ -123,19 +130,25 @@ class Table
     Table(Table&) = default;
     Table(Table&&) = default;
 
-    const State* next_state(const State* current_state, const Event* event) const;
+    State startingState = NULL_STATE;
+    State exitState = NULL_STATE;
+
+    /*void setStartingState(const State& _startingState);
+    void setExitState(const State& _exitState);*/
+
+    const State* next_state(const State* current_state, const Event& event) const;
 
     friend Table& operator<<(Table& table, Transition* p_transition);
+
+    void DumpTable(const std::string& dump_file_name);
 
 };
 
 class Automata
 {
     private:
-    const State* p_current_state = nullptr;
-    const State* p_starting_state = nullptr;
-    const State* p_exit_state = nullptr;
 
+    const State* p_current_state = nullptr;
     const Table* p_transition_table = nullptr;
 
     ILogger* p_logger = nullptr;
@@ -143,16 +156,8 @@ class Automata
     void* data = nullptr;
 
     public:
-    Automata(const State& _p_current_state,
-             const State& _p_starting_state,
-             const State& _p_exit_state,
-             const Table& _p_transition_table,
-             void* _data);
-
-    Automata(const State& _p_current_state,
-             const State& _p_starting_state,
-             const State& _p_exit_state,
-             const Table& _p_transition_table);
+    Automata(const Table& _p_transition_table,
+             void* _data = nullptr);
 
     Automata() = default;
     ~Automata() = default;
@@ -162,16 +167,7 @@ class Automata
     // Temporary TODO fix
     void setLogger(ILogger* _p_logger);
 
-    void LoadTable(const State& _p_current_state,
-                   const State& _p_starting_state,
-                   const State& _p_exit_state,
-                   const Table& _p_transition_table,
-                   void* _data);
-    
-    void LoadTable(const State& _p_current_state,
-                   const State& _p_starting_state,
-                   const State& _p_exit_state,
-                   const Table& _p_transition_table);
+    void LoadTable(const Table& _p_transition_table, void* data = nullptr);
 
     void SetData(void* _data);
     void Reset();

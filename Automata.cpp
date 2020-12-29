@@ -43,17 +43,30 @@ State::State(const std::string& state_name, state_action _action)
     action = _action;
 }
 
+/*State::State(const std::string& state_name, std::function<bool(void*, void*)> _action)
+{
+    action = nullptr;
+    name = "";
+    
+    if(state_name == "")
+        Kernel::Fatal_Error("State name cannot be empty");
+
+    name = state_name;
+    action = _action;
+}*/
+
 std::string State::getName() const
 {
     return name;
 }
 
-void State::execute(void* data, void* arguments) const
+bool State::execute(void* data, void* arguments) const
 {
     if(action != nullptr)
-        action(data, arguments);
-    else
-        Kernel::Warning("Trying to execute nonexistent action assigned to " + name + " state!");
+        return action(data, arguments);
+
+    //Kernel::Warning("Trying to execute nonexistent action assigned to " + name + " state!");
+    return true;
 }
 
 bool operator== (const State& state1, const State& state2)
@@ -65,9 +78,10 @@ bool operator== (const State& state1, const State& state2)
 
 //================================STATE_EVENT_PAIR
 
-State_Event_Pair::State_Event_Pair(const State* _state, const Event* _event)
+State_Event_Pair::State_Event_Pair(const State _state, const Event _event)
+    :   state(_state), event(_event)
 {
-    state = _state;
+    /*state = _state;
     event = _event;
 
     if(state == nullptr)
@@ -78,17 +92,17 @@ State_Event_Pair::State_Event_Pair(const State* _state, const Event* _event)
     if(event == nullptr)
     {
         Kernel::Fatal_Error("State_Event_Pair - event error! nullptr!");
-    }
+    }*/
 }
 
 std::string State_Event_Pair::getUniqueIdentifier() const
 {
-    return state->getName() + event->getName();
+    return state.getName() + " + " + event.getName();
 }
 
 State_Event_Pair* operator+ (State& _state, Event& _event)
 {
-    State_Event_Pair* state_event_pair = new State_Event_Pair(&_state, &_event);
+    State_Event_Pair* state_event_pair = new State_Event_Pair(_state, _event);
     if(state_event_pair == nullptr)
         Kernel::Fatal_Error("Could not create a new state event pair object for the following arguments: (" + _state.getName() + ", " + _event.getName() + ")");
     return state_event_pair;
@@ -96,14 +110,15 @@ State_Event_Pair* operator+ (State& _state, Event& _event)
 
 //================================TRANSITION
 
-Transition::Transition(State_Event_Pair* _p_state_event_pair, State* _p_next_state)
+Transition::Transition(State_Event_Pair* _p_state_event_pair, State _next_state)
+    :   next_state(_next_state)
 {
-    p_next_state = _p_next_state;
+    /*p_next_state = _p_next_state;
 
     if(p_next_state == nullptr)
     {
         Kernel::Fatal_Error("Transition - next state error! nullptr!");
-    }
+    }*/
 
     p_state_event_pair = _p_state_event_pair;
 
@@ -118,9 +133,9 @@ Transition::~Transition()
     delete p_state_event_pair;
 }
 
-State* Transition::getNextState() const
+const State& Transition::getNextState() const
 {
-    return p_next_state;
+    return next_state;
 }
 
 State_Event_Pair* Transition::getStateEventPair() const
@@ -130,31 +145,41 @@ State_Event_Pair* Transition::getStateEventPair() const
 
 Transition* operator> (State_Event_Pair* p_state_event_pair, State& next_state)
 {
-    Transition* current_Transition = new Transition(p_state_event_pair, &next_state);
+    Transition* current_Transition = new Transition(p_state_event_pair, next_state);
     return current_Transition;
 }
 
 //================================TABLE
 
-const State* Table::next_state(const State* current_state, const Event* event) const
+const State* Table::next_state(const State* p_current_state, const Event& event) const
 {
-    const State* next_state_pointer = nullptr;
+    const State* p_next_state = &NULL_STATE;
     try
     {
-        State_Event_Pair current_state_event(current_state, event);
-        next_state_pointer = transition_table.at( current_state_event.getUniqueIdentifier() );
+        State_Event_Pair current_state_event(*p_current_state, event);
+        p_next_state = &transition_table.at( current_state_event.getUniqueIdentifier() );
     }
     catch(std::out_of_range& exception)
     {
         // Error
         // Undefined state event transition
-        next_state_pointer = current_state;
-        Kernel::Warning("No known transition in the transition table for: " + current_state->getName() + " and " + event->getName());
+        p_next_state = p_current_state;
+        Kernel::Warning("No known transition in the transition table for: " + p_current_state->getName() + " and " + event.getName());
     }
 
-    return next_state_pointer;
+    return p_next_state;
 
 }
+
+/*void Table::setStartingState(const State& _startingState) // TODO check if state exists in table
+{
+    startingState = _startingState;
+}
+
+void Table::setExitState(const State& _exitState) // TODO check if state exists in table
+{
+    exitState = _exitState;
+}*/
 
 
 Table& operator<<(Table& table, Transition* p_transition)
@@ -171,24 +196,22 @@ Table& operator<<(Table& table, Transition* p_transition)
     return table;
 }
 
-//================================AUTOMATA
-
-Automata::Automata(const State& _p_current_state,
-                   const State& _p_starting_state,
-                   const State& _p_exit_state,
-                   const Table& _p_transition_table,
-                   void* _data)
+void Table::DumpTable(const std::string& dump_file_name)
 {
-    LoadTable(_p_current_state, _p_starting_state, _p_exit_state, _p_transition_table, _data);
-    setLogger(nullptr);
+    Logger dump_file(dump_file_name);
+
+    for(auto kv : transition_table)
+    {
+        dump_file << kv.first + " -> " + kv.second.getName();
+    }
 }
 
-Automata::Automata(const State& _p_current_state,
-                   const State& _p_starting_state,
-                   const State& _p_exit_state,
-                   const Table& _p_transition_table)
+//================================AUTOMATA
+
+Automata::Automata(const Table& _p_transition_table,
+                   void* _data)
 {
-    LoadTable(_p_current_state, _p_starting_state, _p_exit_state, _p_transition_table);
+    LoadTable(_p_transition_table, _data);
     setLogger(nullptr);
 }
 
@@ -201,75 +224,66 @@ void Automata::SetData(void* _data)
     }
 }
 
-void Automata::LoadTable(const State& _p_current_state,
-                         const State& _p_starting_state,
-                         const State& _p_exit_state,
-                         const Table& _p_transition_table)
+void Automata::setLogger(ILogger* _p_logger)
 {
-    p_current_state = &_p_current_state;
-    if(p_current_state == nullptr)
+    if(_p_logger == nullptr)
     {
-        Kernel::Fatal_Error("Automaton current state cannot be null");
-    }
+        if(p_logger == nullptr)
+            p_logger = NulLogger::getInstance();
 
-    p_starting_state = &_p_starting_state;
-    if(p_starting_state == nullptr)
-    {
-        Kernel::Fatal_Error("Automaton starting state cannot be null");
+        return; // Do not change valid p_logger to nullptr
     }
+    p_logger = _p_logger;
+}
 
-    p_exit_state = &_p_exit_state;
-    if(p_exit_state == nullptr)
-    {
-        Kernel::Fatal_Error("Automaton exit state cannot be null");
-    }
-
+void Automata::LoadTable(const Table& _p_transition_table,
+                         void* _data)
+{
     p_transition_table = &_p_transition_table;
     if(p_transition_table == nullptr)
     {
         Kernel::Fatal_Error("Automaton transition table cannot be null");
     }
-}
 
-void Automata::setLogger(ILogger* _p_logger)
-{
-    p_logger = _p_logger;
-    if(p_logger == nullptr)
-        p_logger = NulLogger::getInstance();
-}
+    p_current_state = &(p_transition_table->startingState);
+    if(p_current_state == nullptr)
+    {
+        Kernel::Fatal_Error("Automaton current state cannot be null");
+    }
 
-void Automata::LoadTable(const State& _p_current_state,
-                         const State& _p_starting_state,
-                         const State& _p_exit_state,
-                         const Table& _p_transition_table,
-                         void* _data)
-{
-    LoadTable(_p_current_state, _p_starting_state, _p_exit_state, _p_transition_table);
+    setLogger(nullptr); // TODO add for default constructor
     SetData(_data);
 }
 
 void Automata::Reset()
 {
-    p_current_state = p_starting_state;
+    p_current_state = &(p_transition_table->startingState);
     *p_logger << "Automata reset to: " + p_current_state->getName();
 }
 
 void Automata::Advance(Event& event, void* arguments)
 {
-    const State* p_previous_state = p_current_state;
-
-    p_current_state = p_transition_table->next_state(p_current_state, &event);
-
-    *p_logger << p_previous_state->getName() + " + " + event.getName() + " -> " + p_current_state->getName();
-    
     if(event == NULL_EVENT_NOP)
         return; // skip the action
     else if(event == ERROR_EVENT)
     {
-        *p_logger << "Warning! ERROR_EVENT has been received! Resetting the automaton";
+        *p_logger << "Warning! ERROR_EVENT has been received with argument: \""+ std::string(reinterpret_cast<char*> (arguments)) +"\"! Resetting the automaton";
         Reset();
     }
-        
 
-    p_current_state->execute(data, arguments);
+    const State* p_previous_state = p_current_state;
+    p_current_state = p_transition_table->next_state(p_current_state, event);
+    *p_logger << p_previous_state->getName() + " + " + event.getName() + " -> " + p_current_state->getName();
+    
+
+    if(*p_current_state == NULL_STATE)
+        return; // skip the action
+
+    bool success = p_current_state->execute(data, arguments);
+    if(success == false)
+    {
+        std::string error_message = "Action in state: " + p_current_state->getName() + " failed. Check the logs";
+        Advance(ERROR_EVENT, (void*) error_message.c_str() );
+    }
+        
 }
