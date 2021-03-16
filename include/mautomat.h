@@ -9,6 +9,7 @@
 
 #include<string>
 #include<vector>
+#include<mutex>
 
 
 class MAutomat;
@@ -32,6 +33,7 @@ protected:
 	int m_iEventID;
 	std::string m_sDesc;
 	bool m_bHasData;
+	std::mutex automatonMutex;
 };
 
 
@@ -119,7 +121,7 @@ public:
 
 	bool test();
 	virtual bool reset() = 0;
-	bool processEvent(MAutEvent * event);
+	virtual bool processEvent(MAutEvent * event);
 
 
 	bool isAutInitialized(); //is the MAutomat class defined well?
